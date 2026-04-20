@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Convites Digitais — Painel</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ink: #1a1410; --parchment: #f5f0e8; --gold: #c9a84c;
+  --gold-light: #e8d5a3; --rose: #b5645a; --cream: #faf7f2; --border: #ddd5c4;
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); min-height: 100vh; }
+
+nav { background: var(--ink); padding: 0 2rem; display: flex; align-items: center; height: 60px; }
+.nav-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; color: var(--gold); letter-spacing: .08em; }
+.nav-logo span { font-style: italic; color: var(--gold-light); }
+
+.hero { background: var(--ink); color: var(--parchment); padding: 4rem 2rem 3rem; text-align: center; }
+.hero-eyebrow { font-size: .72rem; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); margin-bottom: .75rem; }
+.hero h1 { font-family: 'Cormorant Garamond', serif; font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 300; }
+.hero h1 em { font-style: italic; color: var(--gold-light); }
+.hero p { max-width: 480px; margin: 1rem auto 0; opacity: .6; font-size: .9rem; line-height: 1.7; }
+
+main { max-width: 1060px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
+
+.stats-bar { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+.stat-item { background: white; border: 1px solid var(--border); border-radius: 8px; padding: .9rem 1.4rem; flex: 1; min-width: 100px; text-align: center; }
+.stat-num { font-family: 'Cormorant Garamond', serif; font-size: 2rem; font-weight: 300; color: var(--gold); }
+.stat-label { font-size: .7rem; color: #999; text-transform: uppercase; letter-spacing: .08em; }
+
+.section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: .65rem; }
+.section-head h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 400; }
+
+.btn { display: inline-flex; align-items: center; gap: .4rem; padding: .55rem 1.1rem; border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: .82rem; letter-spacing: .04em; cursor: pointer; border: none; transition: all .2s; text-decoration: none; }
+.btn-primary { background: var(--gold); color: var(--ink); font-weight: 500; }
+.btn-primary:hover { background: #b89030; }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+.btn-danger { background: transparent; color: var(--rose); border: 1px solid var(--rose); font-size: .76rem; padding: .38rem .75rem; }
+.btn-danger:hover { background: var(--rose); color: white; }
+
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 1.25rem; }
+.invite-card { background: white; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: box-shadow .2s, transform .2s; }
+.invite-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.09); transform: translateY(-2px); }
+.card-thumb { height: 150px; background: var(--parchment); display: flex; align-items: center; justify-content: center; font-size: 2.8rem; position: relative; overflow: hidden; }
+.card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.card-badge { position: absolute; top: .5rem; right: .5rem; padding: .2rem .65rem; border-radius: 20px; font-size: .68rem; font-weight: 500; }
+.badge-active { background: #d4edda; color: #2d6a4f; }
+.badge-draft  { background: #fff3cd; color: #856404; }
+.card-body { padding: 1rem 1.15rem 1.15rem; }
+.card-body h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; font-weight: 400; margin-bottom: .2rem; }
+.card-meta { font-size: .75rem; color: #999; margin-bottom: .6rem; }
+.url-chip { display: flex; align-items: center; gap: .4rem; background: var(--parchment); border: 1px solid var(--border); border-radius: 4px; padding: .35rem .65rem; font-size: .74rem; color: #666; overflow: hidden; }
+.url-chip span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.url-chip button { background: none; border: none; cursor: pointer; font-size: .76rem; color: var(--gold); font-weight: 500; flex-shrink: 0; }
+.card-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .8rem; }
+
+.empty-state { text-align: center; padding: 4rem 2rem; color: #bbb; grid-column: 1/-1; }
+.empty-state .icon { font-size: 2.8rem; margin-bottom: .8rem; }
+.empty-state p { font-size: .88rem; margin-bottom: 1.25rem; }
+
+/* MODAL */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(10,8,5,.72); z-index: 200; align-items: flex-start; justify-content: center; padding: 1rem; overflow-y: auto; }
+.overlay.open { display: flex; }
+.modal { background: white; border-radius: 10px; width: 100%; max-width: 720px; margin: auto; animation: mIn .22s ease; }
+@keyframes mIn { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
+.modal-hd { display: flex; align-items: center; justify-content: space-between; padding: 1.4rem 1.6rem .9rem; border-bottom: 1px solid var(--border); }
+.modal-hd h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; font-weight: 400; }
+.modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #aaa; line-height: 1; }
+.modal-close:hover { color: var(--ink); }
+.modal-bd { padding: 1.4rem 1.6rem 1rem; }
+.modal-ft { display: flex; gap: .6rem; justify-content: flex-end; padding: .9rem 1.6rem 1.4rem; border-top: 1px solid var(--border); }
+
+.fg { margin-bottom: 1.1rem; }
+label { display: block; font-size: .74rem; letter-spacing: .07em; text-transform: uppercase; color: #777; margin-bottom: .35rem; font-weight: 500; }
+input[type=text], input[type=date], input[type=number], select {
+  width: 100%; padding: .55rem .85rem; border: 1px solid var(--border); border-radius: 5px;
+  font-family: 'DM Sans', sans-serif; font-size: .88rem; background: var(--cream); color: var(--ink); outline: none;
+}
+input:focus, select:focus { border-color: var(--gold); }
+
+.uzone { border: 2px dashed var(--border); border-radius: 7px; padding: 1.1rem; text-align: center; cursor: pointer; transition: all .2s; background: var(--cream); }
+.uzone:hover { border-color: var(--gold); background: #fdf9f0; }
+.uzone .uicon { font-size: 1.6rem; margin-bottom: .3rem; }
+.uzone p { font-size: .8rem; color: #999; }
+.uzone strong { color: var(--gold); }
+.prev-img { width: 100%; max-height: 120px; object-fit: contain; margin-top: .5rem; border-radius: 4px; display: none; }
+.prev-vid { width: 100%; margin-top: .5rem; border-radius: 4px; display: none; max-height: 140px; }
+.ftag { display: none; margin-top: .4rem; background: #fff8e6; border: 1px solid #e8d5a3; color: #7a5c10; border-radius: 20px; padding: .15rem .7rem; font-size: .72rem; }
+
+.tabs { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 1rem; }
+.tab { flex: 1; padding: .48rem; text-align: center; cursor: pointer; font-size: .8rem; background: var(--cream); color: #777; border: none; font-family: 'DM Sans', sans-serif; transition: all .2s; }
+.tab.active { background: var(--gold); color: var(--ink); font-weight: 500; }
+
+.sep { border: none; border-top: 1px solid var(--border); margin: 1.1rem 0; }
+
+/* LINK EDITOR */
+.link-list { display: flex; flex-direction: column; gap: .6rem; margin-bottom: .6rem; }
+.link-card {
+  background: var(--cream); border: 1px solid var(--border); border-radius: 7px; padding: .8rem;
+}
+.link-card-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-bottom: .5rem; }
+.link-card-row2 { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: .5rem; align-items: end; }
+.link-card-row2 label { margin-bottom: .25rem; }
+.link-rm { background: none; border: 1px solid #eee; border-radius: 4px; padding: .38rem .55rem; cursor: pointer; color: var(--rose); font-size: .9rem; transition: all .2s; align-self: flex-end; }
+.link-rm:hover { background: var(--rose); color: white; border-color: var(--rose); }
+.pos-hint { font-size: .7rem; color: #aaa; margin-top: .25rem; }
+
+.toast { position: fixed; bottom: 1.8rem; right: 1.8rem; background: var(--ink); color: var(--gold-light); padding: .7rem 1.2rem; border-radius: 6px; font-size: .83rem; z-index: 999; opacity: 0; transform: translateY(8px); transition: all .28s; pointer-events: none; }
+.toast.show { opacity: 1; transform: none; }
+.spin { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(26,20,16,.25); border-top-color: var(--ink); border-radius: 50%; animation: sp .55s linear infinite; vertical-align: middle; margin-right: .3rem; }
+@keyframes sp { to { transform: rotate(360deg); } }
+
+.info-box { background: #fff8e6; border: 1px solid var(--gold-light); border-radius: 6px; padding: .65rem .9rem; font-size: .78rem; color: #7a5c10; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+
+<nav><div class="nav-logo">Convite<span>Digital</span></div></nav>
+
+<div class="hero">
+  <p class="hero-eyebrow">Painel de Gerenciamento</p>
+  <h1>Seus <em>convites</em> em um só lugar</h1>
+  <p>Crie e compartilhe convites digitais com imagem ou vídeo, botões invisíveis posicionáveis e popup de presentes.</p>
+</div>
+
+<main>
+  <div class="stats-bar">
+    <div class="stat-item"><div class="stat-num" id="sTotal">0</div><div class="stat-label">Convites</div></div>
+    <div class="stat-item"><div class="stat-num" id="sActive">0</div><div class="stat-label">Ativos</div></div>
+    <div class="stat-item"><div class="stat-num" id="sDraft">0</div><div class="stat-label">Rascunhos</div></div>
+  </div>
+  <div class="section-head">
+    <h2>Meus Convites</h2>
+    <button class="btn btn-primary" onclick="openCreate()">＋ Novo Convite</button>
+  </div>
+  <div class="cards-grid" id="grid">
+    <div class="empty-state"><div class="icon">⏳</div><p>Carregando…</p></div>
+  </div>
+</main>
+
+<!-- MODAL -->
+<div class="overlay" id="modal">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3 id="modalTitle">Novo Convite</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-bd">
+
+      <div class="fg">
+        <label>Nome do Evento</label>
+        <input type="text" id="fName" placeholder="Ex: Casamento Ana & Pedro">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">
+        <div class="fg"><label>Data</label><input type="date" id="fDate"></div>
+        <div class="fg">
+          <label>Status</label>
+          <select id="fStatus"><option value="draft">Rascunho</option><option value="active">Ativo</option></select>
+        </div>
+      </div>
+
+      <hr class="sep">
+
+      <!-- ENVELOPE (opcional) -->
+      <div class="fg">
+        <label>📮 Capa / Envelope <span style="font-weight:400;color:#aaa;text-transform:none;letter-spacing:0">(opcional)</span></label>
+        <div class="uzone" onclick="pick('fCover')">
+          <input type="file" id="fCover" accept="image/*" style="display:none" onchange="onImg(this,'prevCover','tagCover')">
+          <div class="uicon">📮</div>
+          <p>Clique ou arraste — se não enviar, o convite abre direto</p>
+          <img id="prevCover" class="prev-img">
+          <span id="tagCover" class="ftag"></span>
+        </div>
+      </div>
+
+      <hr class="sep">
+
+      <!-- CONTEÚDO -->
+      <div class="fg">
+        <label>🎉 Conteúdo do Convite</label>
+        <div class="tabs">
+          <button class="tab active" id="tBImg" onclick="setTab('img')">Imagem</button>
+          <button class="tab" id="tBVid" onclick="setTab('vid')">Vídeo</button>
+        </div>
+        <div id="tImg">
+          <div class="uzone" onclick="pick('fImg')">
+            <input type="file" id="fImg" accept="image/*" style="display:none" onchange="onImg(this,'prevImg','tagImg')">
+            <div class="uicon">🖼</div>
+            <p>Clique ou arraste a imagem do convite</p>
+            <img id="prevImg" class="prev-img">
+            <span id="tagImg" class="ftag"></span>
+          </div>
+        </div>
+        <div id="tVid" style="display:none">
+          <div class="uzone" onclick="pick('fVid')">
+            <input type="file" id="fVid" accept="video/*" style="display:none" onchange="onVid(this)">
+            <div class="uicon">🎬</div>
+            <p>Clique ou arraste o vídeo</p>
+            <video id="prevVid" class="prev-vid" controls playsinline></video>
+            <span id="tagVid" class="ftag"></span>
+          </div>
+        </div>
+      </div>
+
+      <hr class="sep">
+
+      <!-- BOTÕES INVISÍVEIS -->
+      <div class="fg">
+        <label>🔗 Botões Invisíveis Posicionáveis</label>
+        <div class="info-box">💡 Os botões são transparentes sobre a arte. Use % para posicionar: <strong>left</strong> e <strong>top</strong> indicam a posição a partir do canto superior esquerdo da imagem. Arraste no preview do convite para ajustar.</div>
+        <div class="link-list" id="linkList"></div>
+        <button class="btn btn-ghost" style="font-size:.78rem;padding:.38rem .9rem" onclick="addLink()">+ Adicionar botão</button>
+      </div>
+
+      <hr class="sep">
+
+      <!-- PRESENTES (opcional) -->
+      <div class="fg">
+        <label>🎁 Sugestão de Presentes <span style="font-weight:400;color:#aaa;text-transform:none;letter-spacing:0">(opcional — popup)</span></label>
+        <div class="uzone" onclick="pick('fGifts')">
+          <input type="file" id="fGifts" accept="image/*" style="display:none" onchange="onImg(this,'prevGifts','tagGifts')">
+          <div class="uicon">🎁</div>
+          <p>Clique ou arraste a imagem de presentes</p>
+          <img id="prevGifts" class="prev-img">
+          <span id="tagGifts" class="ftag"></span>
+        </div>
+        <div id="giftsPosSec" style="margin-top:.8rem;display:none">
+          <div class="info-box">💡 Posição do botão invisível de presentes sobre a arte (em %).</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.5rem">
+            <div><label>Left %</label><input type="number" id="gLeft" value="80" min="0" max="100"></div>
+            <div><label>Top %</label><input type="number" id="gTop" value="90" min="0" max="100"></div>
+            <div><label>Largura %</label><input type="number" id="gW" value="15" min="1" max="100"></div>
+            <div><label>Altura %</label><input type="number" id="gH" value="8" min="1" max="100"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveInvite()">💾 Salvar Convite</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── IndexedDB ──────────────────────────────────────────────────────────────
+const DB_NAME = 'ConvitesDB', DB_VER = 3;
+let db = null;
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, DB_VER);
+    r.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('invites')) d.createObjectStore('invites', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('files'))   d.createObjectStore('files');
+    };
+    r.onsuccess = e => { db = e.target.result; res(); };
+    r.onerror   = () => rej(r.error);
+  });
+}
+
+const txS  = (s,m) => db.transaction(s,m).objectStore(s);
+const dbAll = ()    => new Promise((res,rej)=>{ const r=txS('invites','readonly').getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+const dbPut = o     => new Promise((res,rej)=>{ const r=txS('invites','readwrite').put(o); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+const dbDel = id    => new Promise((res,rej)=>{ const r=txS('invites','readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+const fPut  = (k,b) => new Promise((res,rej)=>{ const r=txS('files','readwrite').put(b,k); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+const fGet  = k     => new Promise(res=>{ if(!k)return res(null); const r=txS('files','readonly').get(k); r.onsuccess=()=>res(r.result||null); r.onerror=()=>res(null); });
+const fDel  = k     => new Promise(res=>{ if(!k)return res(); const r=txS('files','readwrite').delete(k); r.onsuccess=()=>res(); r.onerror=()=>res(); });
+
+// ── State ──────────────────────────────────────────────────────────────────
+let invites = [], editingId = null, linkCnt = 0;
+const pending = { cover:null, img:null, vid:null, gifts:null };
+
+openDB().then(async () => { invites = await dbAll(); render(); })
+        .catch(e => { console.error(e); toast('❌ Erro ao abrir banco'); });
+
+// show gifts pos section when file is picked
+document.getElementById('fGifts').addEventListener('change', () => {
+  document.getElementById('giftsPosSec').style.display = 'block';
+});
+
+// ── Render ─────────────────────────────────────────────────────────────────
+async function render() {
+  document.getElementById('sTotal').textContent  = invites.length;
+  document.getElementById('sActive').textContent = invites.filter(i=>i.status==='active').length;
+  document.getElementById('sDraft').textContent  = invites.filter(i=>i.status==='draft').length;
+
+  const grid = document.getElementById('grid');
+  if (!invites.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="icon">✉️</div><p>Nenhum convite ainda.</p><button class="btn btn-primary" onclick="openCreate()">Criar primeiro convite</button></div>`;
+    return;
+  }
+
+  const html = await Promise.all(invites.map(async inv => {
+    let thumb = `<span style="font-size:2.5rem">✉️</span>`;
+    const thumbKey = inv.coverKey || inv.inviteImgKey;
+    if (thumbKey) {
+      const blob = await fGet(thumbKey);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        thumb = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover">`;
+      }
+    }
+    const bc = inv.status==='active' ? 'badge-active' : 'badge-draft';
+    const bt = inv.status==='active' ? 'Ativo' : 'Rascunho';
+    // Build shareable URL using data param
+    const shareUrl = buildShareUrl(inv.id);
+    return `
+    <div class="invite-card">
+      <div class="card-thumb">${thumb}<span class="card-badge ${bc}">${bt}</span></div>
+      <div class="card-body">
+        <h3>${esc(inv.name)}</h3>
+        <p class="card-meta">${inv.date ? fmtDate(inv.date) : 'Data não definida'}</p>
+        <div class="url-chip"><span>${shareUrl}</span><button onclick="copyUrl('${shareUrl}')">Copiar</button></div>
+        <div class="card-actions">
+          <a href="convite.html?id=${inv.id}" target="_blank" class="btn btn-ghost">👁 Ver</a>
+          <button class="btn btn-ghost" onclick="openEdit('${inv.id}')">✏️ Editar</button>
+          <button class="btn btn-danger" onclick="deleteInv('${inv.id}')">Excluir</button>
+        </div>
+      </div>
+    </div>`;
+  }));
+  grid.innerHTML = html.join('');
+}
+
+function buildShareUrl(id) {
+  const base = location.href.replace(/\/[^\/]*(\?.*)?$/, '');
+  return `${base}/convite.html?id=${id}`;
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function openCreate() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Novo Convite';
+  resetForm();
+  document.getElementById('modal').classList.add('open');
+}
+
+async function openEdit(id) {
+  const inv = invites.find(i=>i.id===id);
+  if (!inv) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'Editar Convite';
+  resetForm();
+  document.getElementById('fName').value   = inv.name   || '';
+  document.getElementById('fDate').value   = inv.date   || '';
+  document.getElementById('fStatus').value = inv.status || 'draft';
+
+  const loadBlob = async (key, imgId, tagId, isVid) => {
+    if (!key) return;
+    const blob = await fGet(key);
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    if (isVid) { const v=document.getElementById('prevVid'); v.src=url; v.style.display='block'; }
+    else       { const i=document.getElementById(imgId); i.src=url; i.style.display='block'; }
+    const t=document.getElementById(tagId); t.textContent='✓ arquivo atual'; t.style.display='inline-block';
+  };
+
+  await loadBlob(inv.coverKey, 'prevCover', 'tagCover', false);
+  if (inv.inviteVidKey) { setTab('vid'); await loadBlob(inv.inviteVidKey, null, 'tagVid', true); }
+  else                  { await loadBlob(inv.inviteImgKey, 'prevImg', 'tagImg', false); }
+  if (inv.giftsKey) {
+    await loadBlob(inv.giftsKey, 'prevGifts', 'tagGifts', false);
+    document.getElementById('giftsPosSec').style.display = 'block';
+    if (inv.giftsPos) {
+      document.getElementById('gLeft').value = inv.giftsPos.left ?? 80;
+      document.getElementById('gTop').value  = inv.giftsPos.top  ?? 90;
+      document.getElementById('gW').value    = inv.giftsPos.w    ?? 15;
+      document.getElementById('gH').value    = inv.giftsPos.h    ?? 8;
+    }
+  }
+  (inv.btnLinks||[]).forEach(l => addLink(l));
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  pending.cover=pending.img=pending.vid=pending.gifts=null;
+}
+
+function resetForm() {
+  document.getElementById('fName').value='';
+  document.getElementById('fDate').value='';
+  document.getElementById('fStatus').value='draft';
+  ['fCover','fImg','fVid','fGifts'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['prevCover','prevImg','prevGifts'].forEach(id=>{ const el=document.getElementById(id); el.src=''; el.style.display='none'; });
+  const vp=document.getElementById('prevVid'); vp.src=''; vp.style.display='none';
+  ['tagCover','tagImg','tagVid','tagGifts'].forEach(id=>{ const el=document.getElementById(id); el.textContent=''; el.style.display='none'; });
+  document.getElementById('linkList').innerHTML='';
+  document.getElementById('giftsPosSec').style.display='none';
+  document.getElementById('gLeft').value=80; document.getElementById('gTop').value=90;
+  document.getElementById('gW').value=15;    document.getElementById('gH').value=8;
+  linkCnt=0; pending.cover=pending.img=pending.vid=pending.gifts=null;
+  setTab('img');
+}
+
+// ── Save / Delete ──────────────────────────────────────────────────────────
+async function saveInvite() {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) { toast('⚠️ Informe o nome do evento'); return; }
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>Salvando…';
+
+  try {
+    const id  = editingId || (Date.now().toString(36)+Math.random().toString(36).slice(2,5));
+    const old = editingId ? (invites.find(i=>i.id===editingId)||{}) : {};
+
+    const saveSlot = async (slot, oldKey) => {
+      const blob = pending[slot];
+      if (blob) {
+        const k = `${id}_${slot}`;
+        await fPut(k, blob);
+        if (oldKey && oldKey!==k) await fDel(oldKey);
+        return k;
+      }
+      return oldKey||null;
+    };
+
+    const coverKey     = await saveSlot('cover', old.coverKey);
+    const inviteImgKey = await saveSlot('img',   old.inviteImgKey);
+    const inviteVidKey = await saveSlot('vid',   old.inviteVidKey);
+    const giftsKey     = await saveSlot('gifts', old.giftsKey);
+
+    const giftsPos = giftsKey ? {
+      left: +document.getElementById('gLeft').value,
+      top:  +document.getElementById('gTop').value,
+      w:    +document.getElementById('gW').value,
+      h:    +document.getElementById('gH').value,
+    } : null;
+
+    const inv = {
+      id, name,
+      date:      document.getElementById('fDate').value,
+      status:    document.getElementById('fStatus').value,
+      coverKey, inviteImgKey, inviteVidKey, giftsKey, giftsPos,
+      btnLinks: collectLinks(),
+    };
+
+    await dbPut(inv);
+    invites = editingId ? invites.map(i=>i.id===editingId?inv:i) : [...invites, inv];
+    closeModal();
+    await render();
+    toast('✅ Convite salvo!');
+  } catch(e) {
+    console.error(e);
+    toast('❌ Erro ao salvar. Veja o console (F12).');
+  } finally {
+    btn.disabled=false; btn.innerHTML='💾 Salvar Convite';
+  }
+}
+
+async function deleteInv(id) {
+  if (!confirm('Excluir este convite?')) return;
+  const inv = invites.find(i=>i.id===id);
+  if (inv) await Promise.all([fDel(inv.coverKey),fDel(inv.inviteImgKey),fDel(inv.inviteVidKey),fDel(inv.giftsKey)]);
+  await dbDel(id);
+  invites = invites.filter(i=>i.id!==id);
+  await render();
+  toast('🗑 Excluído');
+}
+
+// ── File pickers ───────────────────────────────────────────────────────────
+function pick(id) { document.getElementById(id).click(); }
+
+function onImg(input, prevId, tagId) {
+  const f=input.files[0]; if(!f) return;
+  const slot={fCover:'cover',fImg:'img',fGifts:'gifts'}[input.id];
+  pending[slot]=f;
+  const img=document.getElementById(prevId); img.src=URL.createObjectURL(f); img.style.display='block';
+  const t=document.getElementById(tagId); t.textContent='📎 '+f.name; t.style.display='inline-block';
+  if (input.id==='fGifts') document.getElementById('giftsPosSec').style.display='block';
+}
+
+function onVid(input) {
+  const f=input.files[0]; if(!f) return;
+  pending.vid=f;
+  const v=document.getElementById('prevVid'); v.src=URL.createObjectURL(f); v.style.display='block';
+  const t=document.getElementById('tagVid'); t.textContent='📎 '+f.name; t.style.display='inline-block';
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+function setTab(tab) {
+  document.getElementById('tImg').style.display = tab==='img'?'block':'none';
+  document.getElementById('tVid').style.display = tab==='vid'?'block':'none';
+  document.getElementById('tBImg').classList.toggle('active', tab==='img');
+  document.getElementById('tBVid').classList.toggle('active', tab==='vid');
+}
+
+// ── Link cards ─────────────────────────────────────────────────────────────
+function addLink(data={}) {
+  const n = ++linkCnt;
+  const d = document.createElement('div');
+  d.className='link-card'; d.id='lc'+n;
+  d.innerHTML=`
+    <div class="link-card-row">
+      <div><label>Rótulo (invisível)</label><input type="text" placeholder="Ex: RSVP" value="${esc(data.label||'')}" id="lb${n}"></div>
+      <div><label>URL de destino</label><input type="text" placeholder="https://..." value="${esc(data.url||'')}" id="lk${n}"></div>
+    </div>
+    <div class="link-card-row2">
+      <div><label>Left %</label><input type="number" value="${data.left??10}" min="0" max="100" id="ll${n}"></div>
+      <div><label>Top %</label><input type="number" value="${data.top??10}" min="0" max="100" id="lt${n}"></div>
+      <div><label>Largura %</label><input type="number" value="${data.w??20}" min="1" max="100" id="lw${n}"></div>
+      <div><label>Altura %</label><input type="number" value="${data.h??10}" min="1" max="100" id="lh${n}"></div>
+      <button class="link-rm" onclick="document.getElementById('lc${n}').remove()">✕</button>
+    </div>
+    <p class="pos-hint">Posição em % sobre a arte do convite. Left=0 é borda esquerda, Top=0 é borda superior.</p>`;
+  document.getElementById('linkList').appendChild(d);
+}
+
+function collectLinks() {
+  return [...document.querySelectorAll('.link-card')].map(c => {
+    const n = c.id.replace('lc','');
+    return {
+      label: document.getElementById('lb'+n)?.value.trim()||'',
+      url:   document.getElementById('lk'+n)?.value.trim()||'',
+      left:  +document.getElementById('ll'+n)?.value||0,
+      top:   +document.getElementById('lt'+n)?.value||0,
+      w:     +document.getElementById('lw'+n)?.value||20,
+      h:     +document.getElementById('lh'+n)?.value||10,
+    };
+  }).filter(l=>l.url);
+}
+
+// ── Utils ──────────────────────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function fmtDate(d) {
+  const [y,m,day]=d.split('-');
+  return `${day} ${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][+m-1]} ${y}`;
+}
+function copyUrl(url) { navigator.clipboard.writeText(url).then(()=>toast('🔗 Link copiado!')); }
+function toast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Convite Digital</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+/* ── ENVELOPE STAGE ───────────────────────────────────────── */
+#envStage {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  background: #000;
+}
+#envStage img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: block;
+  /* crisp, max quality */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+#envStage .no-env {
+  color: #e8d5a3;
+  font-family: 'Georgia', serif;
+  font-size: 1.5rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+/* ── INVITE STAGE ─────────────────────────────────────────── */
+#invStage {
+  display: none;
+  position: fixed; inset: 0;
+  background: #000;
+}
+
+/* The art fills the entire screen */
+#artWrap {
+  position: relative;
+  width: 100%; height: 100%;
+}
+
+#artWrap img,
+#artWrap video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: block;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Invisible overlay buttons */
+.inv-hotspot {
+  position: absolute;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  /* Uncomment for debug: border: 2px dashed rgba(255,0,0,.4); */
+}
+.inv-hotspot a {
+  display: block;
+  width: 100%; height: 100%;
+  text-decoration: none;
+}
+
+/* ── GIFTS POPUP ──────────────────────────────────────────── */
+#giftsPopup {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.88);
+  z-index: 100;
+  align-items: center; justify-content: center;
+  padding: 1.5rem;
+}
+#giftsPopup.open { display: flex; }
+
+.popup-inner {
+  position: relative;
+  max-width: min(90vw, 90vh);
+  max-height: 90vh;
+}
+.popup-inner img {
+  width: 100%; height: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+  display: block;
+  border-radius: 8px;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+.popup-close {
+  position: absolute; top: -14px; right: -14px;
+  width: 32px; height: 32px;
+  background: white; border: none; border-radius: 50%;
+  font-size: 1rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+  line-height: 1;
+}
+
+/* ── NOT FOUND ────────────────────────────────────────────── */
+#notFound {
+  display: none;
+  position: fixed; inset: 0;
+  background: #0d0b07;
+  color: #e8d5a3;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 1rem;
+  font-family: Georgia, serif;
+  text-align: center; padding: 2rem;
+}
+#notFound h2 { font-size: 2rem; font-weight: 300; }
+#notFound p  { opacity: .5; font-size: .95rem; font-family: sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- ENVELOPE -->
+<div id="envStage" onclick="showInvite()"></div>
+
+<!-- CONVITE -->
+<div id="invStage">
+  <div id="artWrap">
+    <!-- art + hotspots injected by JS -->
+  </div>
+</div>
+
+<!-- GIFTS POPUP -->
+<div id="giftsPopup">
+  <div class="popup-inner">
+    <img id="giftsPopupImg" src="" alt="Sugestões de Presentes">
+    <button class="popup-close" onclick="closeGifts()">✕</button>
+  </div>
+</div>
+
+<!-- NOT FOUND -->
+<div id="notFound">
+  <h2>Convite não encontrado</h2>
+  <p id="notFoundMsg">Verifique o link ou entre em contato com quem te convidou.</p>
+</div>
+
+<script>
+// ── IndexedDB ──────────────────────────────────────────────────────────────
+const DB_NAME = 'ConvitesDB', DB_VER = 3;
+let db = null;
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, DB_VER);
+    r.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('invites')) d.createObjectStore('invites', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('files'))   d.createObjectStore('files');
+    };
+    r.onsuccess = e => { db = e.target.result; res(); };
+    r.onerror   = () => rej(r.error);
+  });
+}
+function dbGet(id) {
+  return new Promise((res,rej) => {
+    const r = db.transaction('invites','readonly').objectStore('invites').get(id);
+    r.onsuccess = () => res(r.result||null); r.onerror = () => rej(r.error);
+  });
+}
+function fileGet(k) {
+  return new Promise(res => {
+    if (!k) return res(null);
+    const r = db.transaction('files','readonly').objectStore('files').get(k);
+    r.onsuccess = () => res(r.result||null); r.onerror = () => res(null);
+  });
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+const invId = new URLSearchParams(location.search).get('id');
+let inv = null;
+let giftsObjectUrl = null;
+
+openDB().then(async () => {
+  if (!invId) { showNotFound('Link inválido.'); return; }
+  inv = await dbGet(invId);
+  if (!inv)   { showNotFound('Convite não encontrado.'); return; }
+
+  document.title = inv.name || 'Convite Digital';
+
+  // If there's an envelope, show it; otherwise skip straight to invite
+  if (inv.coverKey) {
+    const blob = await fileGet(inv.coverKey);
+    if (blob) {
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(blob);
+      document.getElementById('envStage').appendChild(img);
+      document.getElementById('envStage').style.display = 'flex';
+      return; // wait for click
+    }
+  }
+  // No envelope — go straight to invite
+  document.getElementById('envStage').style.display = 'none';
+  await buildInvite();
+  document.getElementById('invStage').style.display = 'block';
+
+}).catch(e => { console.error(e); showNotFound('Erro ao carregar.'); });
+
+// ── Show invite (called on envelope click) ─────────────────────────────────
+async function showInvite() {
+  document.getElementById('envStage').style.display = 'none';
+  await buildInvite();
+  document.getElementById('invStage').style.display = 'block';
+}
+
+// ── Build invite stage ─────────────────────────────────────────────────────
+async function buildInvite() {
+  const wrap = document.getElementById('artWrap');
+  wrap.innerHTML = '';
+
+  // ── Art (image or video) ────────────────────────────────────────────────
+  if (inv.inviteVidKey) {
+    const blob = await fileGet(inv.inviteVidKey);
+    if (blob) {
+      const v = document.createElement('video');
+      v.src = URL.createObjectURL(blob);
+      v.autoplay = true; v.loop = true; v.controls = false; v.playsInline = true; v.muted = false;
+      wrap.appendChild(v);
+      // unmute on first touch (browser autoplay policy)
+      v.play().catch(() => {
+        v.muted = true; v.play();
+      });
+    }
+  } else if (inv.inviteImgKey) {
+    const blob = await fileGet(inv.inviteImgKey);
+    if (blob) {
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(blob);
+      img.draggable = false;
+      wrap.appendChild(img);
+    }
+  }
+
+  // ── Invisible link hotspots ─────────────────────────────────────────────
+  (inv.btnLinks || []).filter(l => l.url).forEach(l => {
+    const btn = document.createElement('div');
+    btn.className = 'inv-hotspot';
+    btn.style.left   = l.left + '%';
+    btn.style.top    = l.top  + '%';
+    btn.style.width  = l.w   + '%';
+    btn.style.height = l.h   + '%';
+    const a = document.createElement('a');
+    a.href = l.url; a.target = '_blank'; a.rel = 'noopener';
+    if (l.label) a.setAttribute('aria-label', l.label);
+    btn.appendChild(a);
+    wrap.appendChild(btn);
+  });
+
+  // ── Gifts hotspot ───────────────────────────────────────────────────────
+  if (inv.giftsKey) {
+    const blob = await fileGet(inv.giftsKey);
+    if (blob) {
+      giftsObjectUrl = URL.createObjectURL(blob);
+      document.getElementById('giftsPopupImg').src = giftsObjectUrl;
+
+      const pos = inv.giftsPos || { left:80, top:90, w:15, h:8 };
+      const btn = document.createElement('div');
+      btn.className = 'inv-hotspot';
+      btn.style.left   = pos.left + '%';
+      btn.style.top    = pos.top  + '%';
+      btn.style.width  = pos.w   + '%';
+      btn.style.height = pos.h   + '%';
+      btn.style.cursor = 'pointer';
+      btn.setAttribute('aria-label', 'Ver sugestão de presentes');
+      btn.onclick = openGifts;
+      wrap.appendChild(btn);
+    }
+  }
+}
+
+// ── Gifts popup ────────────────────────────────────────────────────────────
+function openGifts()  { document.getElementById('giftsPopup').classList.add('open'); }
+function closeGifts() { document.getElementById('giftsPopup').classList.remove('open'); }
+document.getElementById('giftsPopup').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeGifts();
+});
+
+// ── Not found ──────────────────────────────────────────────────────────────
+function showNotFound(msg) {
+  document.getElementById('envStage').style.display   = 'none';
+  document.getElementById('invStage').style.display   = 'none';
+  const nf = document.getElementById('notFound');
+  document.getElementById('notFoundMsg').textContent = msg;
+  nf.style.display = 'flex';
+}
+</script>
+</body>
+</html>
